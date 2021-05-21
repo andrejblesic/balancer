@@ -38,14 +38,14 @@
           </div>
           <div>
             <div
-              v-for="(dist, address) in lastDist"
-              :key="address"
+              v-for="(item, index) in lastDist"
+              :key="index"
               class="d-flex px-4 py-3 border-top text-white"
             >
               <div class="flex-auto">
-                <User :address="address" />
+                <User :address="item.week_number.toString()" />
               </div>
-              <div>{{ $n(dist) }} BAL</div>
+              <div>{{ $n(item.combined_balance) }} BAL</div>
             </div>
           </div>
         </Block>
@@ -61,16 +61,25 @@ export default {
   data() {
     return {
       input: '',
-      lastDist: {}
+      lastDist: []
     };
   },
   created() {
     this.input = this.web3.account;
-    this.lastDist = Object.fromEntries(
-      Object.entries(this.app.latestReport)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-    );
+    // this.lastDist = Object.fromEntries(
+    //   Object.entries(this.app.latestReport)
+    //     .sort((a, b) => b[1] - a[1])
+    //     .slice(0, 15)
+    // );
+  },
+  mounted() {
+    console.log('test test test', window.ethereum);
+    // fetch(`${process.env.VUE_APP_IPFS_NODE}/client/weekly-claims-all`)
+    // .then(res => res.json())
+    // .then(data => {
+    //     console.log('home data: ', data);
+    //     this.lastDist = data;
+    // });
   },
   watch: {
     'web3.account': function() {

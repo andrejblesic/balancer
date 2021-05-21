@@ -51,6 +51,7 @@ const actions = {
       latestWeek = result[0][0];
       const latestWeekIpfsHash = result[0][1];
       latestReport = await ipfs.get(latestWeekIpfsHash);
+      console.log('latest report', latestReport);
       reports[latestWeek] = latestReport;
     }
     commit('SET', {
@@ -103,6 +104,7 @@ const actions = {
   },
   claimStatus: async ({ commit, dispatch }, address) => {
     commit('GET_CLAIM_STATUS_SUCCESS');
+    console.log('claim status called');
     try {
       let res = await dispatch('call', [
         'MerkleRedeem',

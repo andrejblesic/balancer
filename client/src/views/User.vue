@@ -27,35 +27,41 @@
           <Block :slim="true" title="Pending BAL">
             <div class="overflow-hidden">
               <div
-                v-for="(dist, week, i) in unclaimed"
-                :key="i"
+                v-for="(item, index) in unclaimedArr"
+                :key="index"
                 class="px-4 py-3 border-top d-flex text-white"
-                :style="i === 0 && 'border: 0 !important;'"
+                :style="index === 0 && 'border: 0 !important;'"
               >
                 <div class="flex-auto">
                   <a
                     :href="
                       `https://github.com/balancer-labs/bal-mining-scripts/blob/master/reports/${_week(
-                        week
+                        item.week_number
                       )}/_totals.json`
                     "
                     target="_blank"
                   >
-                    Week {{ $n(_week(week)) }}
+                    Week {{ $n(_week(item.week_number)) }}
                     <Icon name="external-link" class="ml-1" />
                   </a>
                 </div>
-                <div>{{ $n(dist) }} BAL</div>
+                <div>{{ $n(item.amount) }} BAL</div>
               </div>
               <p
-                v-if="Object.keys(unclaimed).length === 0"
+                v-if="Object.keys(unclaimedArr).length === 0"
                 class="p-4 m-0 d-block"
               >
                 There isn't any pending BAL here.
               </p>
             </div>
           </Block>
-          <Block
+
+          <!-- <div :key="index" v-for="(item, index) in unclaimedArr">
+              <p>{{item.amount}}</p>
+              <p>{{item.week_number}}</p>
+          </div> -->
+
+          <!-- <Block
             v-if="Object.keys(claimed).length > 0"
             :slim="true"
             title="Claimed BAL"
@@ -83,7 +89,7 @@
                 <div>{{ $n(dist) }} BAL</div>
               </div>
             </div>
-          </Block>
+          </Block> -->
         </div>
         <div class="col-12 col-lg-4 float-left">
           <Block title="Total pending BAL">
@@ -119,7 +125,8 @@ export default {
       loaded: false,
       submitLoading: false,
       unclaimedWeeks: [],
-      txHash: false
+      txHash: false,
+      unclaimedArr: []
     };
   },
   computed: {
@@ -154,11 +161,18 @@ export default {
     await this.loadReports(this.unclaimedWeeks);
     this.loading = false;
   },
+  mounted() {
+    fetch(`${process.env.VUE_APP_IPFS_NODE}/client/weekly-claims/${this.address}`)
+    .then(res => res.json())
+    .then(data => {
+        this.unclaimedArr = data;
+    });
+    // TODO: SAVE CLAIMS TO DATA, IMPLEMENT RENDERING LOGIC
+  },
   methods: {
     ...mapActions(['claimWeeks', 'claimStatus', 'loadReports']),
     async getUnclaimedWeeks() {
       const claimStatus = await this.claimStatus(this.address);
-      console.log('Claim status', claimStatus);
       this.unclaimedWeeks = Object.entries(claimStatus)
         .filter(status => !status[1])
         .map(status => status[0]);
@@ -169,7 +183,6 @@ export default {
       setTimeout(async () => {
         try {
           const tx = await this.claimWeeks({ address: this.address, weeks });
-          console.log('Claim weeks', tx);
           await tx.wait(1);
           await this.getUnclaimedWeeks();
           this.submitLoading = false;
