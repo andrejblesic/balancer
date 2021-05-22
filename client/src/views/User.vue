@@ -13,7 +13,7 @@
           <div class="px-4 px-md-0">
             <h1 class="mb-3">{{ _shorten(address) }}</h1>
           </div>
-          <a
+          <!-- <a
             target="_blank"
             :href="_etherscanLink(txHash, 'tx')"
             v-if="txHash"
@@ -23,7 +23,7 @@
               See transaction on Etherscan {{ _shorten(txHash) }}
               <Icon name="external-link" class="ml-1" />
             </p>
-          </a>
+          </a> -->
           <Block :slim="true" title="Pending BAL">
             <div class="overflow-hidden">
               <div
@@ -33,19 +33,18 @@
                 :style="index === 0 && 'border: 0 !important;'"
               >
                 <div class="flex-auto">
-                  <a
+                  <p style="font-size: 18px; margin-bottom: 0;">Week {{ Object.keys(item)[0] }}</p>
+                  <!-- <a
                     :href="
-                      `https://github.com/balancer-labs/bal-mining-scripts/blob/master/reports/${_week(
-                        item.week_number
-                      )}/_totals.json`
+                      `https://github.com/balancer-labs/bal-mining-scripts/blob/master/reports/${Object.keys(item)[0]}/_totals.json`
                     "
                     target="_blank"
                   >
-                    Week {{ $n(_week(item.week_number)) }}
+                    Week {{ Object.keys(item)[0] }}
                     <Icon name="external-link" class="ml-1" />
-                  </a>
+                  </a> -->
                 </div>
-                <div>{{ $n(item.amount) }} BAL</div>
+                <div>{{ item[Object.keys(item)[0]] }} BAL</div>
               </div>
               <p
                 v-if="Object.keys(unclaimedArr).length === 0"
@@ -95,12 +94,12 @@
           <Block title="Total pending BAL">
             <div class="mb-2">
               <UiButton class="width-full mb-2">
-                {{ $n(totalUnclaimed) }} BAL
+                {{ total.toFixed(18) }} BAL
               </UiButton>
             </div>
             <UiButton
               @click="handleSubmit"
-              :disabled="!web3.account || totalUnclaimed === 0"
+              :disabled="!web3.account || total === 0 || !localReports"
               :loading="submitLoading"
               class="d-block width-full button--submit"
             >
@@ -124,9 +123,10 @@ export default {
       loading: false,
       loaded: false,
       submitLoading: false,
-      unclaimedWeeks: [],
       txHash: false,
-      unclaimedArr: []
+      unclaimedArr: [],
+      total: 0,
+      localReports: undefined
     };
   },
   computed: {
@@ -157,20 +157,66 @@ export default {
   },
   async created() {
     this.loading = true;
-    await this.getUnclaimedWeeks();
-    await this.loadReports(this.unclaimedWeeks);
+    // await this.getUnclaimedWeeks();
+    // await this.loadReports(this.unclaimedWeeks);
     this.loading = false;
   },
   mounted() {
-    fetch(`${process.env.VUE_APP_IPFS_NODE}/client/weekly-claims/${this.address}`)
+    // get unclaimed rewards for user
+    this.getClaims();
+    // get reports
+    fetch(`${process.env.VUE_APP_IPFS_NODE}/get-reports`)
     .then(res => res.json())
     .then(data => {
-        this.unclaimedArr = data;
+      this.localReports = data;
     });
-    // TODO: SAVE CLAIMS TO DATA, IMPLEMENT RENDERING LOGIC
   },
   methods: {
     ...mapActions(['claimWeeks', 'claimStatus', 'loadReports']),
+    async getClaims() {
+      // const statuscina = await this.claimStatus(this.address);
+      fetch(`${process.env.VUE_APP_IPFS_NODE}/get-unclaimed-rewards?address=${this.address}`)
+      .then(res => res.json())
+      .then(data => {
+        this.unclaimedArr = data.data;
+        let totalCounter = 0;
+        data.data.length && data.data.forEach((item) => {
+          totalCounter += parseFloat(item[Object.keys(item)[0]]);
+        });
+        this.total = totalCounter
+      });
+    },
+    confirmClaims() {
+      const confirmClaimData = {
+        address: this.address,
+        weeks: []
+      }
+      this.unclaimedArr.forEach((item, index) => {
+        confirmClaimData.weeks.push({
+          week: Object.keys(item)[0],
+          amount: item[Object.keys(item)[0]]
+        })
+      });
+      // window.location.reload();
+      fetch(`${process.env.VUE_APP_IPFS_NODE}/confirm-claims`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': '*/*'
+        },
+        body: JSON.stringify(confirmClaimData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log(data);
+        if (data.success) {
+          // this.unclaimedArr = [];
+          // this.total = 0;
+        }
+        this.getClaims();
+      })
+      .catch(error => console.log(error));
+    },
     async getUnclaimedWeeks() {
       const claimStatus = await this.claimStatus(this.address);
       this.unclaimedWeeks = Object.entries(claimStatus)
@@ -179,15 +225,20 @@ export default {
     },
     async handleSubmit() {
       this.submitLoading = true;
-      const weeks = Object.keys(this.unclaimed);
+      const weeks = [];
+      console.log('unclaimedarr', this.unclaimedArr);
+      this.unclaimedArr.forEach((item, index) => {
+        weeks.push(Object.keys(item)[0]);
+      });
       setTimeout(async () => {
         try {
-          const tx = await this.claimWeeks({ address: this.address, weeks });
-          await tx.wait(1);
-          await this.getUnclaimedWeeks();
+          const tx = await this.claimWeeks({ address: this.address, weeks, reports: this.localReports });
+          // console.log('TXTXTXTXTXTTXTXTXTXT', tx);
+          await this.confirmClaims();
           this.submitLoading = false;
           this.txHash = tx.hash;
         } catch (e) {
+          console.log('error', e);
           this.submitLoading = false;
         }
       }, 10);

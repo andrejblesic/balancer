@@ -26,7 +26,7 @@
         </form>
       </Block>
     </Container>
-    <div v-if="Object.keys(lastDist).length > 0">
+    <div v-if="true">
       <Container>
         <h2 class="mb-3">Top 10 this week</h2>
       </Container>
@@ -43,9 +43,9 @@
               class="d-flex px-4 py-3 border-top text-white"
             >
               <div class="flex-auto">
-                <User :address="item.week_number.toString()" />
+                <User :address="item.liquidity_provider_address" />
               </div>
-              <div>{{ $n(item.combined_balance) }} BAL</div>
+              <div>{{ $n(item.amount) }} BAL</div>
             </div>
           </div>
         </Block>
@@ -73,13 +73,16 @@ export default {
     // );
   },
   mounted() {
-    console.log('test test test', window.ethereum);
-    // fetch(`${process.env.VUE_APP_IPFS_NODE}/client/weekly-claims-all`)
-    // .then(res => res.json())
-    // .then(data => {
-    //     console.log('home data: ', data);
-    //     this.lastDist = data;
-    // });
+    fetch(`${process.env.VUE_APP_IPFS_NODE}/get-top-list`)
+    .then(res => res.json())
+    .then(data => {
+        console.log('home data: ', data);
+        if (data.error) {
+          console.error(data.error);
+          return;
+        }
+        this.lastDist = data;
+    });
   },
   watch: {
     'web3.account': function() {

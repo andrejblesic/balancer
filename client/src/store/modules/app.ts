@@ -44,37 +44,39 @@ const actions = {
     if (connector) await dispatch('login', connector);
     const snapshot = await getSnapshot();
     let latestWeek = 0;
-    let latestReport = {};
+    // let latestReport = {};
     const reports = {};
     if (Object.keys(snapshot).length > 0) {
       const result: any = Object.entries(snapshot).slice(-1);
       latestWeek = result[0][0];
       const latestWeekIpfsHash = result[0][1];
-      latestReport = await ipfs.get(latestWeekIpfsHash);
-      console.log('latest report', latestReport);
-      reports[latestWeek] = latestReport;
+      // latestReport = await ipfs.get(latestWeekIpfsHash);
+      // console.log('latest report', latestReport);
+      // reports[latestWeek] = latestReport;
     }
     commit('SET', {
       loading: false,
       init: true,
       snapshot,
       latestWeek,
-      latestReport,
       reports
     });
   },
   loading: ({ commit }, payload) => {
     commit('SET', { loading: payload });
   },
-  claimWeeks: async ({ commit, dispatch }, { address, weeks }) => {
+  // change so that function takes reports as argument
+  claimWeeks: async ({ commit, dispatch }, { address, weeks, reports }) => {
     commit('CLAIM_WEEKS_REQUEST');
     let totalClaim = 0;
     const claims = weeks.map(week => {
-      const claimBalance = state.reports[week][address];
-      const merkleTree = loadTree(state.reports[week]);
+      // take reports from argument instead of vuex state
+      console.log(reports, week, address);
+      const claimBalance = reports[week][address];
+      const merkleTree = loadTree(reports[week]);
 
       // Get merkle root
-      console.log(week, merkleTree.getHexRoot());
+      console.log('MERKLE ROOT', merkleTree.getHexRoot());
 
       const proof = merkleTree.getHexProof(
         soliditySha3(address, toWei(claimBalance))
@@ -104,7 +106,6 @@ const actions = {
   },
   claimStatus: async ({ commit, dispatch }, address) => {
     commit('GET_CLAIM_STATUS_SUCCESS');
-    console.log('claim status called');
     try {
       let res = await dispatch('call', [
         'MerkleRedeem',
